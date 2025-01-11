@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Harmonizer Web App</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* Grid Section */
+        .grid-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 15px;
+        }
+
+        .grid-controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .tempo-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tempo-control input {
+            width: 60px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .grid-container {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+
+        .bar-numbers {
+            display: grid;
+            grid-template-columns: repeat(8, 120px);
+            gap: 8px;
+            margin-bottom: 8px;
+            text-align: center;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .chord-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 120px);
+            gap: 8px;
+            min-width: min-content;
+        }
+
+        .grid-slot {
+            height: 80px;
+            width: 120px;
+            background: white;
+            border: 2px dashed #ddd;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .grid-slot.has-chord {
+            border: none;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .grid-slot.playing {
+            background-color: rgba(40, 167, 69, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Control Buttons */
+        .play-btn, .stop-btn, .clear-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }
+
+        .play-btn { background-color: #28a745; color: white; }
+        .stop-btn { background-color: #dc3545; color: white; }
+        .clear-btn { background-color: #6c757d; color: white; }
+
+        .play-btn:hover, .stop-btn:hover, .clear-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Harmonizer Section */
+        .harmonizer-section {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-group input, .input-group select {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        #notes {
+            width: 200px;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* Results Section */
+        .chord-results {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .chord-box {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 0.9em;
+            width: 120px;
+            cursor: grab;
+        }
+
+        .chord-box:active {
+            cursor: grabbing;
+        }
+
+        .chord-box.grid-chord {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .grid-chord-notes {
+            text-align: center;
+            font-size: 0.85em;
+            margin-bottom: 25px;  /* Make room for the select */
+        }
+
+        .remove-chord-btn {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            padding: 2px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            opacity: 0.6;
+            font-size: 0.8em;
+        }
+
+        .remove-chord-btn:hover {
+            opacity: 1;
+        }
+
+        .chord-controls {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+
+        .octave-controls {
+            display: flex;
+            gap: 2px;
+        }
+
+        .octave-btn {
+            padding: 2px 6px;
+            font-size: 0.8em;
+        }
+
+        #error {
+            color: #dc3545;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .voicing-select {
+            max-width: 80px;
+            font-size: 0.8em;
+            padding: 2px 4px;
+        }
+
+        .grid-chord .voicing-select {
+            position: absolute;
+            bottom: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            max-width: 80%;
+            font-size: 0.8em;
+            padding: 2px 4px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+
+        .download-btn {
+            padding: 6px 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+            background-color: #17a2b8;  /* Info blue color */
+            color: white;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            background-color: #138496;
+        }
+
+        .download-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Grid Section -->
+    <div class="grid-section">
+        <div class="grid-controls">
+            <div class="tempo-control">
+                <label for="tempo">BPM:</label>
+                <input type="number" id="tempo" value="120" min="40" max="200">
+            </div>
+            <button onclick="playGrid()" class="play-btn">
+                <i class="fas fa-play"></i>
+            </button>
+            <button onclick="stopGrid()" class="stop-btn">
+                <i class="fas fa-stop"></i>
+            </button>
+            <button onclick="clearGrid()" class="clear-btn">
+                <i class="fas fa-trash"></i>
+            </button>
+            <button onclick="downloadSequence()" class="download-btn">
+                <i class="fas fa-download"></i>
+            </button>
+        </div>
+        <div class="grid-container">
+            <div class="bar-numbers">
+                <div>1</div>
+                <div>2</div>
+                <div>3</div>
+                <div>4</div>
+                <div>5</div>
+                <div>6</div>
+                <div>7</div>
+                <div>8</div>
+            </div>
+            <div class="chord-grid">
+                <div class="grid-slot" data-slot="0" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                <div class="grid-slot" data-slot="1" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                <div class="grid-slot" data-slot="2" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                <div class="grid-slot" data-slot="3" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                <div class="grid-slot" data-slot="4" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                <div class="grid-slot" data-slot="5" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                <div class="grid-slot" data-slot="6" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+                <div class="grid-slot" data-slot="7" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Harmonizer Section -->
+    <div class="harmonizer-section">
+        <div class="controls">
+            <div class="input-group">
+                <label for="notes">Notes:</label>
+                <input type="text" id="notes" value="C D E F G A B">
+                <div class="help-text">Note names (C-B) or numbers (0-11)</div>
+            </div>
+            <div class="input-group">
+                <label for="chord-size">Size:</label>
+                <select id="chord-size">
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="waveform">Wave:</label>
+                <select id="waveform">
+                    <option value="sine">Sine</option>
+                    <option value="sawtooth">Saw</option>
+                </select>
+            </div>
+            <button onclick="harmonize()" class="action-btn">
+                <i class="fas fa-magic"></i> Generate
+            </button>
+        </div>
+        <div id="error"></div>
+        <div id="results" class="chord-results"></div>
+    </div>
+
+    <!-- Add Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <script>
+        function harmonize() {
+            const notes = document.getElementById('notes').value;
+            const chordSize = document.getElementById('chord-size').value;
+            const waveform = document.getElementById('waveform').value;
+            
+            document.getElementById('error').textContent = '';
+            document.getElementById('results').innerHTML = 'Generating harmonization...';
+            
+            fetch('/harmonize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    notes: notes,
+                    chord_size: chordSize,
+                    waveform: waveform
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayResults(data.chords);
+                } else {
+                    document.getElementById('error').textContent = data.error;
+                    document.getElementById('results').innerHTML = '';
+                }
+            })
+            .catch(error => {
+                document.getElementById('error').textContent = error.message;
+                document.getElementById('results').innerHTML = '';
+            });
+        }
+
+        function displayResults(chords) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            
+            chords.forEach((voicings, chordIndex) => {
+                const chordDiv = document.createElement('div');
+                chordDiv.className = 'chord-box';
+                chordDiv.draggable = true;
+                chordDiv.addEventListener('dragstart', drag);
+                
+                // Create main chord display
+                const mainVoicing = voicings[0];
+                chordDiv.innerHTML = `
+                    <div class="main-chord">
+                        <strong>Chord ${chordIndex + 1}:</strong> 
+                        <span id="chord-${chordIndex}-notes">${mainVoicing.notes.join(', ')}</span>
+                        <div class="chord-controls">
+                            <button onclick="playChord('chord-${chordIndex}')">▶</button>
+                            <div class="octave-controls">
+                                <button onclick="shiftOctave(${chordIndex}, 1)" class="octave-btn">↑</button>
+                                <button onclick="shiftOctave(${chordIndex}, -1)" class="octave-btn">↓</button>
+                            </div>
+                            <select onchange="switchVoicing(${chordIndex}, this.value)" class="voicing-select">
+                                ${voicings.map((voicing, voicingIndex) => `
+                                    <option value="${voicingIndex}">${voicing.name}</option>
+                                `).join('')}
+                            </select>
+                            <button onclick="randomizeVoicing(${chordIndex})" class="action-btn">🎲</button>
+                        </div>
+                        <audio id="chord-${chordIndex}" src="data:audio/wav;base64,${mainVoicing.audio}"></audio>
+                    </div>
+                `;
+                
+                chordDiv.dataset.voicings = JSON.stringify(voicings);
+                chordDiv.dataset.currentOctave = "0";
+                chordDiv.dataset.chordIndex = chordIndex;
+                
+                resultsDiv.appendChild(chordDiv);
+            });
+        }
+
+        function switchVoicing(chordIndex, voicingIndex, selectElement) {
+            // Find all chord divs with this index (both in results and grid)
+            const chordDivs = document.querySelectorAll(`.chord-box[data-chord-index="${chordIndex}"]`);
+            const voicings = JSON.parse(chordDivs[0].dataset.voicings);
+            const newVoicing = voicings[voicingIndex];
+            
+            chordDivs.forEach(chordDiv => {
+                // Update notes display
+                const notesElement = chordDiv.querySelector('.grid-chord-notes') || 
+                                   chordDiv.querySelector(`#chord-${chordIndex}-notes`);
+                if (notesElement) {
+                    notesElement.textContent = newVoicing.notes.join(', ');
+                }
+                
+                // Update audio
+                const audio = chordDiv.querySelector('audio');
+                if (audio) {
+                    audio.src = `data:audio/wav;base64,${newVoicing.audio}`;
+                }
+                
+                // Update voicing select
+                const select = chordDiv.querySelector('.voicing-select');
+                if (select) {
+                    select.value = voicingIndex;
+                }
+            });
+            
+            // Update sequence if needed
+            updateSequence();
+        }
+
+        function shiftOctave(chordIndex, shift) {
+            // Find all chord divs with this index
+            const chordDivs = document.querySelectorAll(`.chord-box[data-chord-index="${chordIndex}"]`);
+            const currentOctave = parseInt(chordDivs[0].dataset.currentOctave) || 0;
+            const newOctave = currentOctave + shift;
+            
+            // Get current voicing
+            const voicings = JSON.parse(chordDivs[0].dataset.voicings);
+            const currentVoicingIndex = chordDivs[0].querySelector('.voicing-select').value;
+            const currentVoicing = voicings[currentVoicingIndex];
+            
+            // Get the waveform setting
+            const waveform = document.getElementById('waveform').value;
+            
+            // Request new audio data for shifted octave
+            fetch('/shift_octave', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    notes: currentVoicing.notes.map(note => {
+                        const name = note.replace(/[0-9-]/g, '');
+                        return {
+                            name: name,
+                            octave: newOctave
+                        };
+                    }),
+                    shift: 0,
+                    waveform: waveform
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update all instances of this chord
+                    chordDivs.forEach(chordDiv => {
+                        // Update octave in dataset
+                        chordDiv.dataset.currentOctave = newOctave;
+                        
+                        // Update the notes display
+                        const notesDisplay = data.notes.map(note => 
+                            `${note.name}${note.octave}`
+                        ).join(', ');
+                        
+                        const notesElement = chordDiv.querySelector('.grid-chord-notes') || 
+                                           chordDiv.querySelector(`#chord-${chordIndex}-notes`);
+                        if (notesElement) {
+                            notesElement.textContent = notesDisplay;
+                        }
+                        
+                        // Update the audio
+                        const audio = chordDiv.querySelector('audio');
+                        if (audio) {
+                            audio.src = `data:audio/wav;base64,${data.audio}`;
+                        }
+                        
+                        // Update the voicing data
+                        const voicings = JSON.parse(chordDiv.dataset.voicings);
+                        currentVoicing.notes = data.notes.map(note => `${note.name}${note.octave}`);
+                        currentVoicing.audio = data.audio;
+                        voicings[currentVoicingIndex] = currentVoicing;
+                        chordDiv.dataset.voicings = JSON.stringify(voicings);
+                    });
+                    
+                    // Update sequence if needed
+                    updateSequence();
+                }
+            })
+            .catch(error => {
+                console.error('Error shifting octave:', error);
+            });
+        }
+
+        function randomizeVoicing(chordIndex) {
+            const chordDiv = document.querySelectorAll('.chord-box')[chordIndex];
+            const voicings = JSON.parse(chordDiv.dataset.voicings);
+            const currentIndex = parseInt(chordDiv.querySelector('.voicing-select').value);
+            let randomIndex;
+            do {
+                randomIndex = Math.floor(Math.random() * voicings.length);
+            } while (randomIndex === currentIndex && voicings.length > 1);
+            switchVoicing(chordIndex, randomIndex);
+        }
+
+        function playChord(audioId) {
+            const audio = document.getElementById(audioId);
+            audio.currentTime = 0;
+            audio.play();
+        }
+
+        // Drag and Drop functions
+        function drag(event) {
+            const chordDiv = event.target.closest('.chord-box');
+            if (!chordDiv) return;
+            
+            // Store the original element's parent for removal if this is a move operation
+            const sourceSlot = chordDiv.closest('.grid-slot');
+            if (sourceSlot) {
+                event.dataTransfer.setData('source-slot', sourceSlot.dataset.slot);
+            }
+            
+            event.dataTransfer.setData('text/plain', JSON.stringify({
+                chordIndex: chordDiv.dataset.chordIndex,
+                voicings: chordDiv.dataset.voicings,
+                currentOctave: chordDiv.dataset.currentOctave,
+                currentVoicingIndex: chordDiv.querySelector('.voicing-select')?.value || 0,
+                audio: chordDiv.querySelector('audio')?.src || null
+            }));
+        }
+
+        function allowDrop(event) {
+            event.preventDefault();
+            event.target.classList.add('drag-over');
+        }
+
+        function dragLeave(event) {
+            event.target.classList.remove('drag-over');
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            event.target.classList.remove('drag-over');
+            
+            const slot = event.target.closest('.grid-slot') || event.target;
+            if (!slot.classList.contains('grid-slot')) return;
+            
+            const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+            const sourceSlotIndex = event.dataTransfer.getData('source-slot');
+            const voicings = JSON.parse(data.voicings);
+            const currentVoicing = voicings[data.currentVoicingIndex || 0];
+            
+            // If this is a move within the grid, remove from the source slot
+            if (sourceSlotIndex) {
+                const sourceSlot = document.querySelector(`[data-slot="${sourceSlotIndex}"]`);
+                sourceSlot.innerHTML = '';
+                sourceSlot.classList.remove('has-chord');
+            }
+            
+            // Create or move the chord
+            const chordDiv = document.createElement('div');
+            chordDiv.className = 'chord-box grid-chord';
+            chordDiv.draggable = true;
+            chordDiv.addEventListener('dragstart', drag);
+            chordDiv.dataset.voicings = data.voicings;
+            chordDiv.dataset.currentOctave = data.currentOctave;
+            chordDiv.dataset.chordIndex = data.chordIndex;
+            
+            chordDiv.innerHTML = `
+                <div class="grid-chord">
+                    <div class="grid-chord-notes">${currentVoicing.notes.join(', ')}</div>
+                    <select onchange="switchVoicing(${data.chordIndex}, this.value, this)" class="voicing-select">
+                        ${voicings.map((voicing, idx) => `
+                            <option value="${idx}" ${idx === parseInt(data.currentVoicingIndex) ? 'selected' : ''}>
+                                ${voicing.name}
+                            </option>
+                        `).join('')}
+                    </select>
+                    <button onclick="removeFromGrid(this)" class="remove-chord-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <audio src="${data.audio || `data:audio/wav;base64,${currentVoicing.audio}`}"></audio>
+                </div>
+            `;
+            
+            slot.innerHTML = '';
+            slot.appendChild(chordDiv);
+            slot.classList.add('has-chord');
+            
+            updateSequence();
+        }
+
+        function removeFromGrid(button) {
+            const slot = button.closest('.grid-slot');
+            slot.innerHTML = '';
+            slot.classList.remove('has-chord');
+            updateSequence();
+        }
+
+        // Sequence handling
+        let sequence = new Array(8).fill(null);
+        let isPlaying = false;
+        let currentBar = -1;
+
+        function updateSequence() {
+            const slots = document.querySelectorAll('.grid-slot');
+            sequence = Array.from(slots).map(slot => {
+                const chordDiv = slot.querySelector('.chord-box');
+                if (!chordDiv) return null;
+                
+                const voicings = JSON.parse(chordDiv.dataset.voicings);
+                const currentVoicingIndex = chordDiv.querySelector('.voicing-select')?.value || 0;
+                return voicings[currentVoicingIndex];
+            });
+        }
+
+        let audioPlayer = null;  // Global audio player
+
+        async function playGrid() {
+            if (isPlaying) return;
+            stopGrid();  // Ensure any previous playback is stopped
+            
+            // Update sequence before playing
+            updateSequence();
+            
+            // Get non-empty chords
+            const chords = sequence.filter((chord, index) => {
+                if (chord) return true;
+                // Keep non-trailing empty slots
+                return sequence.slice(index + 1).some(c => c !== null);
+            });
+            
+            if (chords.length === 0) return;
+            
+            isPlaying = true;
+            currentBar = -1;
+            
+            const tempo = document.getElementById('tempo').value;
+            
+            // Update play button state
+            const playBtn = document.querySelector('.play-btn');
+            playBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+            playBtn.onclick = stopGrid;
+            
+            // Request concatenated audio from server
+            try {
+                const response = await fetch('/play_sequence', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sequence: sequence.map(chord => {
+                            if (!chord) return null;
+                            return {
+                                notes: chord.notes.map(note => {
+                                    // Parse note name and octave from the note string
+                                    const match = note.match(/([A-G]#?)(-?\d+)/);
+                                    return {
+                                        name: match[1],
+                                        octave: parseInt(match[2])
+                                    };
+                                })
+                            };
+                        }),
+                        tempo: parseInt(tempo),
+                        waveform: document.getElementById('waveform').value
+                    })
+                });
+                
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error);
+                
+                // Create audio player
+                audioPlayer = new Audio(`data:audio/wav;base64,${data.audio}`);
+                audioPlayer.addEventListener('timeupdate', updateGridVisuals);
+                audioPlayer.addEventListener('ended', stopGrid);
+                audioPlayer.play();
+                
+            } catch (error) {
+                console.error('Error playing sequence:', error);
+                stopGrid();
+            }
+        }
+
+        function updateGridVisuals() {
+            if (!audioPlayer || !isPlaying) return;
+            
+            const tempo = document.getElementById('tempo').value;
+            const barDuration = (60 / tempo) * 4; // Duration in seconds
+            const currentTime = audioPlayer.currentTime;
+            const currentBar = Math.floor(currentTime / barDuration);
+            
+            // Update visual feedback
+            document.querySelectorAll('.grid-slot').forEach((slot, index) => {
+                slot.classList.toggle('playing', index === currentBar);
+            });
+        }
+
+        function stopGrid() {
+            isPlaying = false;
+            currentBar = -1;
+            
+            // Stop audio
+            if (audioPlayer) {
+                audioPlayer.pause();
+                audioPlayer.currentTime = 0;
+                audioPlayer = null;
+            }
+            
+            // Reset visual feedback
+            document.querySelectorAll('.grid-slot').forEach(slot => {
+                slot.classList.remove('playing');
+            });
+            
+            // Reset play button
+            const playBtn = document.querySelector('.play-btn');
+            playBtn.innerHTML = '<i class="fas fa-play"></i> Play';
+            playBtn.onclick = playGrid;
+        }
+
+        function clearGrid() {
+            if (!confirm('Are you sure you want to clear the entire sequence?')) return;
+            
+            document.querySelectorAll('.grid-slot').forEach(slot => {
+                slot.innerHTML = '';
+                slot.classList.remove('has-chord');
+            });
+            updateSequence();
+            stopGrid();
+        }
+
+        function downloadSequence() {
+            // Update sequence before downloading
+            updateSequence();
+            
+            // Get non-empty chords
+            const chords = sequence.filter((chord, index) => {
+                if (chord) return true;
+                // Keep non-trailing empty slots
+                return sequence.slice(index + 1).some(c => c !== null);
+            });
+            
+            if (chords.length === 0) {
+                alert('No chords to download');
+                return;
+            }
+            
+            const downloadBtn = document.querySelector('.download-btn');
+            downloadBtn.disabled = true;
+            
+            // Request audio data from server
+            fetch('/download_sequence', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sequence: sequence.map(chord => {
+                        if (!chord) return null;
+                        return {
+                            notes: chord.notes.map(note => {
+                                const match = note.match(/([A-G]#?)(-?\d+)/);
+                                return {
+                                    name: match[1],
+                                    octave: parseInt(match[2])
+                                };
+                            })
+                        };
+                    }),
+                    tempo: parseInt(document.getElementById('tempo').value),
+                    waveform: document.getElementById('waveform').value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) throw new Error(data.error);
+                
+                // Create download link
+                const link = document.createElement('a');
+                link.href = `data:audio/wav;base64,${data.audio}`;
+                link.download = 'chord_sequence.wav';
+                
+                // Trigger download
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            })
+            .catch(error => {
+                console.error('Error downloading sequence:', error);
+                alert('Error downloading sequence: ' + error.message);
+            })
+            .finally(() => {
+                downloadBtn.disabled = false;
+            });
+        }
+    </script>
+</body>
+</html> 
