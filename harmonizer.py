@@ -2,33 +2,49 @@ class Note:
     """Represents a musical note."""
     NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
-    def __init__(self, name_or_number, octave=0):
-        if isinstance(name_or_number, (int, str)):
+    def __init__(self, name, octave=4):
+        if isinstance(name, (int, str)):
             # Convert string numbers to integers
-            if isinstance(name_or_number, str) and name_or_number.isdigit():
-                name_or_number = int(name_or_number)
+            if isinstance(name, str) and name.isdigit():
+                name = int(name)
             
-            if isinstance(name_or_number, int):
+            if isinstance(name, int):
                 # If given a number (0-11)
-                self.number = int(name_or_number) % 12
-                self.octave = octave
+                self.number = int(name) % 12
                 self.name = self.NOTES[self.number]
             else:
                 # If given a note name
-                if name_or_number not in self.NOTES:
-                    raise ValueError(f"Invalid note name: {name_or_number}. Must be one of {self.NOTES}")
-                self.name = name_or_number
+                self.name = name.upper()
+                if self.name not in self.NOTES:
+                    raise ValueError(f"Invalid note name: {name}. Must be one of {self.NOTES}")
                 self.number = self.NOTES.index(self.name)
-                self.octave = octave
         else:
             raise ValueError("Input must be a note name (str) or a number (0-11)")
+            
+        self.octave = octave
+
+    @property
+    def frequency(self):
+        """Calculate frequency in Hz using A4 = 440Hz as reference"""
+        A4 = 440  # Hz
+        A4_note_number = 69  # MIDI note number for A4
+        
+        # Calculate MIDI note number
+        midi_note = self.number + (self.octave * 12) + 60
+        
+        # Convert MIDI note to frequency
+        # f = 440 * 2^((n-69)/12)
+        return A4 * (2 ** ((midi_note - A4_note_number) / 12))
 
     def get_midi_number(self):
         """Get the MIDI note number including octave information."""
         return self.number + (self.octave * 12)
 
-    def __repr__(self):
+    def __str__(self):
         return f"{self.name}{self.octave}"
+
+    def __repr__(self):
+        return self.__str__()
 
     def __eq__(self, other):
         if not isinstance(other, Note):

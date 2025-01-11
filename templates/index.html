@@ -372,6 +372,58 @@
         .wave-btn.active .wave-icon {
             stroke: #333;
         }
+
+        /* Style select elements */
+        .synth-param[type="select"] {
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+            font-size: 0.9em;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            font-size: 1.5em;
+            color: #333;
+        }
+
+        .section-logo {
+            width: 24px;
+            height: 24px;
+            color: #007bff;
+        }
+
+        .tempo-control label {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .tempo-control input {
+            width: 50px;
+            text-align: center;
+        }
+
+        .tempo-icon {
+            width: 16px;
+            height: 16px;
+            color: #666;
+            vertical-align: middle;
+        }
+
+        .tempo-control label {
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -387,13 +439,39 @@
             <path d="M0,8 L8,2 L8,14 L16,2 L16,14 L24,2 L24,14 L32,2" 
                   fill="none" stroke="currentColor" stroke-width="1.5"/>
         </symbol>
+        <!-- PWM icon -->
+        <symbol id="pwm-icon" viewBox="0 0 32 16">
+            <path d="M0,14 L0,2 L12,2 L12,14 L20,14 L20,2 L32,2 L32,14" 
+                  fill="none" stroke="currentColor" stroke-width="1.5"/>
+        </symbol>
+        <!-- Music logo -->
+        <symbol id="music-logo" viewBox="0 0 24 24">
+            <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" 
+                  fill="currentColor"/>
+        </symbol>
+        <!-- Metronome logo for BPM -->
+        <symbol id="metronome-icon" viewBox="0 0 24 24">
+            <path d="M12 1L3 22h18L12 1zm0 4.2l6.3 14.7H5.7L12 5.2z" fill="currentColor"/>
+            <circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+        </symbol>
+        <!-- Music score logo for Arranger -->
+        <symbol id="score-icon" viewBox="0 0 24 24">
+            <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14z" fill="currentColor"/>
+            <path d="M8 12h8v2H8zm0-4h12v2H8zm0 8h4v2H8z" fill="currentColor"/>
+        </symbol>
     </svg>
 
     <!-- Grid Section -->
     <div class="grid-section">
+        <div class="section-header">
+            <svg class="section-logo"><use href="#score-icon"/></svg>
+            <h2>Arranger</h2>
+        </div>
         <div class="grid-controls">
             <div class="tempo-control">
-                <label for="tempo">BPM:</label>
+                <label for="tempo">
+                    <svg class="tempo-icon"><use href="#metronome-icon"/></svg>
+                </label>
                 <input type="number" id="tempo" value="120" min="40" max="200">
             </div>
             <button onclick="playGrid()" class="play-btn">
@@ -435,6 +513,10 @@
 
     <!-- Harmonizer Section -->
     <div class="harmonizer-section">
+        <div class="section-header">
+            <svg class="section-logo"><use href="#music-logo"/></svg>
+            <h2>Harmonizer</h2>
+        </div>
         <div class="controls">
             <div class="input-group">
                 <label for="notes">Notes:</label>
@@ -462,6 +544,11 @@
                             <use href="#saw-icon"/>
                         </svg>
                     </button>
+                    <button class="wave-btn" data-wave="pwm" onclick="selectWave(this)">
+                        <svg class="wave-icon">
+                            <use href="#pwm-icon"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
             <button onclick="harmonize()" class="action-btn">
@@ -487,15 +574,9 @@
             window.selectedWave = button.dataset.wave;
         }
 
-        // Initialize wave selection
-        document.addEventListener('DOMContentLoaded', () => {
-            window.selectedWave = 'sine';  // Default wave
-        });
-
         function harmonize() {
             const notes = document.getElementById('notes').value;
             const chordSize = document.getElementById('chord-size').value;
-            const waveform = window.selectedWave;  // Use selected wave type
             
             document.getElementById('error').textContent = '';
             document.getElementById('results').innerHTML = 'Generating harmonization...';
@@ -508,7 +589,7 @@
                 body: JSON.stringify({
                     notes: notes,
                     chord_size: chordSize,
-                    waveform: waveform
+                    waveform: window.selectedWave
                 })
             })
             .then(response => response.json())
@@ -530,6 +611,9 @@
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
             
+            // Define Roman numerals
+            const romanNumerals = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+            
             chords.forEach((voicings, chordIndex) => {
                 const chordDiv = document.createElement('div');
                 chordDiv.className = 'chord-box';
@@ -540,7 +624,7 @@
                 const mainVoicing = voicings[0];
                 chordDiv.innerHTML = `
                     <div class="main-chord">
-                        <strong>Chord ${chordIndex + 1}:</strong> 
+                        <strong>${romanNumerals[chordIndex]}:</strong> 
                         <span id="chord-${chordIndex}-notes">${mainVoicing.notes.join(', ')}</span>
                         <div class="chord-controls">
                             <button onclick="playChord('chord-${chordIndex}')">▶</button>
@@ -567,129 +651,17 @@
             });
         }
 
-        function switchVoicing(chordIndex, voicingIndex, selectElement) {
-            // Find all chord divs with this index (both in results and grid)
-            const chordDivs = document.querySelectorAll(`.chord-box[data-chord-index="${chordIndex}"]`);
-            const voicings = JSON.parse(chordDivs[0].dataset.voicings);
-            const newVoicing = voicings[voicingIndex];
-            
-            chordDivs.forEach(chordDiv => {
-                // Update notes display
-                const notesElement = chordDiv.querySelector('.grid-chord-notes') || 
-                                   chordDiv.querySelector(`#chord-${chordIndex}-notes`);
-                if (notesElement) {
-                    notesElement.textContent = newVoicing.notes.join(', ');
-                }
-                
-                // Update audio
-                const audio = chordDiv.querySelector('audio');
-                if (audio) {
-                    audio.src = `data:audio/wav;base64,${newVoicing.audio}`;
-                }
-                
-                // Update voicing select
-                const select = chordDiv.querySelector('.voicing-select');
-                if (select) {
-                    select.value = voicingIndex;
-                }
-            });
-            
-            // Update sequence if needed
-            updateSequence();
-        }
-
-        function shiftOctave(chordIndex, shift) {
-            // Find all chord divs with this index
-            const chordDivs = document.querySelectorAll(`.chord-box[data-chord-index="${chordIndex}"]`);
-            const currentOctave = parseInt(chordDivs[0].dataset.currentOctave) || 0;
-            const newOctave = currentOctave + shift;
-            
-            // Get current voicing
-            const voicings = JSON.parse(chordDivs[0].dataset.voicings);
-            const currentVoicingIndex = chordDivs[0].querySelector('.voicing-select').value;
-            const currentVoicing = voicings[currentVoicingIndex];
-            
-            // Get the waveform setting
-            const waveform = document.getElementById('waveform').value;
-            
-            // Request new audio data for shifted octave
-            fetch('/shift_octave', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    notes: currentVoicing.notes.map(note => {
-                        const name = note.replace(/[0-9-]/g, '');
-                        return {
-                            name: name,
-                            octave: newOctave
-                        };
-                    }),
-                    shift: 0,
-                    waveform: waveform
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Update all instances of this chord
-                    chordDivs.forEach(chordDiv => {
-                        // Update octave in dataset
-                        chordDiv.dataset.currentOctave = newOctave;
-                        
-                        // Update the notes display
-                        const notesDisplay = data.notes.map(note => 
-                            `${note.name}${note.octave}`
-                        ).join(', ');
-                        
-                        const notesElement = chordDiv.querySelector('.grid-chord-notes') || 
-                                           chordDiv.querySelector(`#chord-${chordIndex}-notes`);
-                        if (notesElement) {
-                            notesElement.textContent = notesDisplay;
-                        }
-                        
-                        // Update the audio
-                        const audio = chordDiv.querySelector('audio');
-                        if (audio) {
-                            audio.src = `data:audio/wav;base64,${data.audio}`;
-                        }
-                        
-                        // Update the voicing data
-                        const voicings = JSON.parse(chordDiv.dataset.voicings);
-                        currentVoicing.notes = data.notes.map(note => `${note.name}${note.octave}`);
-                        currentVoicing.audio = data.audio;
-                        voicings[currentVoicingIndex] = currentVoicing;
-                        chordDiv.dataset.voicings = JSON.stringify(voicings);
-                    });
-                    
-                    // Update sequence if needed
-                    updateSequence();
-                }
-            })
-            .catch(error => {
-                console.error('Error shifting octave:', error);
-            });
-        }
-
-        function randomizeVoicing(chordIndex) {
-            const chordDiv = document.querySelectorAll('.chord-box')[chordIndex];
-            const voicings = JSON.parse(chordDiv.dataset.voicings);
-            const currentIndex = parseInt(chordDiv.querySelector('.voicing-select').value);
-            let randomIndex;
-            do {
-                randomIndex = Math.floor(Math.random() * voicings.length);
-            } while (randomIndex === currentIndex && voicings.length > 1);
-            switchVoicing(chordIndex, randomIndex);
-        }
-
         function playChord(audioId) {
             const audio = document.getElementById(audioId);
             audio.currentTime = 0;
             audio.play();
         }
 
-        // Drag and Drop functions
+        // Initialize wave selection
+        document.addEventListener('DOMContentLoaded', () => {
+            window.selectedWave = 'sine';  // Default wave
+        });
+
         function drag(event) {
             const chordDiv = event.target.closest('.chord-box');
             if (!chordDiv) return;
@@ -777,7 +749,7 @@
             updateSequence();
         }
 
-        // Sequence handling
+        // Add these functions for sequence handling
         let sequence = new Array(8).fill(null);
         let isPlaying = false;
         let currentBar = -1;
@@ -792,6 +764,110 @@
                 const currentVoicingIndex = chordDiv.querySelector('.voicing-select')?.value || 0;
                 return voicings[currentVoicingIndex];
             });
+        }
+
+        function switchVoicing(chordIndex, voicingIndex, selectElement) {
+            // Find all chord divs with this index (both in results and grid)
+            const chordDivs = document.querySelectorAll(`.chord-box[data-chord-index="${chordIndex}"]`);
+            const voicings = JSON.parse(chordDivs[0].dataset.voicings);
+            const newVoicing = voicings[voicingIndex];
+            
+            chordDivs.forEach(chordDiv => {
+                // Update notes display
+                const notesElement = chordDiv.querySelector('.grid-chord-notes') || 
+                                   chordDiv.querySelector(`#chord-${chordIndex}-notes`);
+                if (notesElement) {
+                    notesElement.textContent = newVoicing.notes.join(', ');
+                }
+                
+                // Update audio
+                const audio = chordDiv.querySelector('audio');
+                if (audio) {
+                    audio.src = `data:audio/wav;base64,${newVoicing.audio}`;
+                }
+                
+                // Update voicing select
+                const select = chordDiv.querySelector('.voicing-select');
+                if (select) {
+                    select.value = voicingIndex;
+                }
+            });
+            
+            // Update sequence if needed
+            updateSequence();
+        }
+
+        function shiftOctave(chordIndex, shift) {
+            // Find all chord divs with this index
+            const chordDivs = document.querySelectorAll(`.chord-box[data-chord-index="${chordIndex}"]`);
+            const currentOctave = parseInt(chordDivs[0].dataset.currentOctave) || 0;
+            const newOctave = currentOctave + shift;
+            
+            // Get current voicing
+            const voicings = JSON.parse(chordDivs[0].dataset.voicings);
+            const currentVoicingIndex = chordDivs[0].querySelector('.voicing-select')?.value;
+            const currentVoicing = voicings[currentVoicingIndex];
+            
+            // Request new audio data for shifted octave
+            fetch('/shift_octave', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    notes: currentVoicing.notes.map(note => {
+                        const name = note.replace(/[0-9-]/g, '');
+                        return {
+                            name: name,
+                            octave: newOctave
+                        };
+                    }),
+                    shift: 0,
+                    waveform: window.selectedWave
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    chordDivs.forEach(chordDiv => {
+                        chordDiv.dataset.currentOctave = newOctave;
+                        
+                        const notesDisplay = data.notes.map(note => 
+                            `${note.name}${note.octave}`
+                        ).join(', ');
+                        
+                        const notesElement = chordDiv.querySelector('.grid-chord-notes') || 
+                                           chordDiv.querySelector(`#chord-${chordIndex}-notes`);
+                        if (notesElement) {
+                            notesElement.textContent = notesDisplay;
+                        }
+                        
+                        const audio = chordDiv.querySelector('audio');
+                        if (audio) {
+                            audio.src = `data:audio/wav;base64,${data.audio}`;
+                        }
+                        
+                        const voicings = JSON.parse(chordDiv.dataset.voicings);
+                        currentVoicing.notes = data.notes.map(note => `${note.name}${note.octave}`);
+                        currentVoicing.audio = data.audio;
+                        voicings[currentVoicingIndex] = currentVoicing;
+                        chordDiv.dataset.voicings = JSON.stringify(voicings);
+                    });
+                    
+                    updateSequence();
+                }
+            });
+        }
+
+        function randomizeVoicing(chordIndex) {
+            const chordDiv = document.querySelectorAll('.chord-box')[chordIndex];
+            const voicings = JSON.parse(chordDiv.dataset.voicings);
+            const currentIndex = parseInt(chordDiv.querySelector('.voicing-select').value);
+            let randomIndex;
+            do {
+                randomIndex = Math.floor(Math.random() * voicings.length);
+            } while (randomIndex === currentIndex && voicings.length > 1);
+            switchVoicing(chordIndex, randomIndex);
         }
 
         let audioPlayer = null;  // Global audio player
@@ -819,7 +895,7 @@
             
             // Update play button state
             const playBtn = document.querySelector('.play-btn');
-            playBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
+            playBtn.innerHTML = '<i class="fas fa-pause"></i>';
             playBtn.onclick = stopGrid;
             
             // Request concatenated audio from server
@@ -895,7 +971,7 @@
             
             // Reset play button
             const playBtn = document.querySelector('.play-btn');
-            playBtn.innerHTML = '<i class="fas fa-play"></i> Play';
+            playBtn.innerHTML = '<i class="fas fa-play"></i>';
             playBtn.onclick = playGrid;
         }
 
@@ -974,18 +1050,6 @@
                 downloadBtn.disabled = false;
             });
         }
-
-        function updateWaveformIcon() {
-            const select = document.getElementById('waveform');
-            const value = select.value;
-            const iconElement = select.parentNode.querySelector('.waveform-icon use');
-            iconElement.setAttribute('href', value === 'sine' ? '#sine-icon' : '#saw-icon');
-        }
-
-        // Add event listener to waveform select
-        document.getElementById('waveform').addEventListener('change', updateWaveformIcon);
-        // Initialize icon
-        document.addEventListener('DOMContentLoaded', updateWaveformIcon);
     </script>
 </body>
 </html> 

@@ -2,6 +2,8 @@ import numpy as np
 import io
 import base64
 import struct
+from scipy import signal
+from scipy.io import wavfile
 
 def generate_wav_file(samples, sample_rate=44100):
     """
@@ -53,129 +55,98 @@ def generate_wav_file(samples, sample_rate=44100):
     
     return base64.b64encode(wav_data).decode('utf-8')
 
-def generate_chord_audio(chord, sample_rate=44100, waveform='sine'):
-    """
-    Generate audio data for a chord with smooth transitions.
+def generate_pwm_wave(frequency, duration, sample_rate=44100, duty_cycle=0.5):
+    t = np.linspace(0, duration, int(sample_rate * duration), False)
+    # Generate slightly detuned frequencies for stereo effect
+    freq_l = frequency * 0.99  # Left channel slightly lower
+    freq_r = frequency * 1.01  # Right channel slightly higher
     
-    Args:
-        chord: list of Note objects
-        sample_rate: sampling rate in Hz
-        waveform: 'sine' or 'sawtooth'
+    # Generate PWM waves for both channels
+    left = np.where((np.sin(2 * np.pi * freq_l * t) + (1 - 2 * duty_cycle)) > 0, 1, -1)
+    right = np.where((np.sin(2 * np.pi * freq_r * t) + (1 - 2 * duty_cycle)) > 0, 1, -1)
     
-    Returns:
-        base64 encoded WAV file data
-    """
-    tempo = 120  # Default tempo
-    beats_per_bar = 4
-    duration = (60 / tempo) * beats_per_bar  # Duration in seconds for one bar
-    
-    # Add a small overlap for smooth transitions
-    overlap = 0.05  # 50ms overlap
-    total_duration = duration + (2 * overlap)
-    
-    # Generate the waveform
-    t = np.linspace(0, total_duration, int(sample_rate * total_duration), False)
-    waves = []
-    
-    for note in chord:
-        # Calculate frequency with octave adjustment
-        A4 = 440  # Hz
-        A4_note_number = 69
-        midi_note = note.number + (note.octave * 12) + 60
-        freq = A4 * 2**((midi_note - A4_note_number) / 12)
-        
-        # Generate wave
-        if waveform == 'sine':
-            wave = np.sin(2 * np.pi * freq * t)
-        else:  # sawtooth
-            wave = 2 * (t * freq - np.floor(0.5 + t * freq))
-        waves.append(wave)
-    
-    # Mix waves and normalize
-    if waves:
-        mixed = sum(waves) / len(waves)
-        max_val = np.max(np.abs(mixed))
-        if max_val > 0:
-            mixed = mixed / max_val
-    else:
-        mixed = np.zeros_like(t)
-    
-    # Apply smoother envelope
-    envelope = np.ones_like(mixed)
-    attack = int(overlap * sample_rate)
-    release = int(overlap * sample_rate)
-    envelope[:attack] = np.power(np.linspace(0, 1, attack), 2)
-    envelope[-release:] = np.power(np.linspace(1, 0, release), 2)
-    mixed *= envelope
-    
-    return generate_wav_file(mixed, sample_rate) 
+    # Combine into stereo array
+    stereo = np.vstack((left, right)).T
+    return stereo
 
-def concatenate_chord_audio(chords, tempo=120, sample_rate=44100, waveform='sine'):
-    """
-    Generate a single audio file from a sequence of chords.
-    Empty slots at the end are ignored.
+def generate_chord_audio(chord, sample_rate=44100, waveform='sine'):
+    duration = 1.0  # seconds
+    if waveform == 'pwm':
+        # Generate stereo PWM for each note and mix
+        waves = [generate_pwm_wave(note.frequency, duration, sample_rate) for note in chord]
+        mixed = np.sum(waves, axis=0) / len(waves)
+    else:
+        # Generate mono waves for other waveforms
+        t = np.linspace(0, duration, int(sample_rate * duration), False)
+        waves = []
+        for note in chord:
+            if waveform == 'sine':
+                wave = np.sin(2 * np.pi * note.frequency * t)
+            elif waveform == 'sawtooth':
+                wave = signal.sawtooth(2 * np.pi * note.frequency * t)
+            elif waveform == 'square':
+                wave = signal.square(2 * np.pi * note.frequency * t)
+            waves.append(wave)
+        mixed = np.sum(waves, axis=0) / len(waves)
+        # Convert to mono format
+        mixed = np.column_stack((mixed, mixed))
     
-    Args:
-        chords: list of chords (None for empty slots)
-        tempo: tempo in BPM
-        sample_rate: sampling rate in Hz
-        waveform: 'sine' or 'sawtooth'
-    """
-    # Remove trailing empty slots
-    while chords and chords[-1] is None:
-        chords.pop()
+    # Normalize
+    mixed = mixed / np.max(np.abs(mixed))
     
-    if not chords:
+    # Convert to WAV file
+    with io.BytesIO() as wav_file:
+        wavfile.write(wav_file, sample_rate, mixed.astype(np.float32))
+        wav_file.seek(0)
+        return base64.b64encode(wav_file.read()).decode('utf-8')
+
+def concatenate_chord_audio(chord_sequence, tempo=120, waveform='sine'):
+    if not any(chord_sequence):
         return None
     
-    # Calculate duration for one bar
-    beats_per_bar = 4
-    bar_duration = (60 / tempo) * beats_per_bar
-    samples_per_bar = int(sample_rate * bar_duration)
+    sample_rate = 44100
+    beat_duration = 60.0 / tempo  # Duration of one beat in seconds
+    bar_duration = 4 * beat_duration  # 4 beats per bar
     
-    # Generate audio for each chord
-    all_samples = []
+    # Calculate total number of samples needed
+    total_samples = int(bar_duration * sample_rate * len(chord_sequence))
     
-    for chord in chords:
+    # Create empty stereo array
+    mixed = np.zeros((total_samples, 2))
+    
+    for i, chord in enumerate(chord_sequence):
         if chord is None:
-            # Empty bar
-            bar_samples = np.zeros(samples_per_bar)
-        else:
-            # Generate chord samples
-            t = np.linspace(0, bar_duration, samples_per_bar, False)
-            waves = []
+            continue
             
-            for note in chord:
-                A4 = 440
-                A4_note_number = 69
-                midi_note = note.number + (note.octave * 12) + 60
-                freq = A4 * 2**((midi_note - A4_note_number) / 12)
-                
-                if waveform == 'sine':
-                    wave = np.sin(2 * np.pi * freq * t)
-                else:
-                    wave = 2 * (t * freq - np.floor(0.5 + t * freq))
-                waves.append(wave)
-            
-            # Mix waves
-            bar_samples = sum(waves) / len(waves) if waves else np.zeros_like(t)
-            
-            # Normalize
-            max_val = np.max(np.abs(bar_samples))
-            if max_val > 0:
-                bar_samples = bar_samples / max_val
-            
-            # Apply envelope to avoid clicks
-            envelope = np.ones_like(bar_samples)
-            attack = int(0.01 * sample_rate)  # 10ms
-            release = int(0.01 * sample_rate)  # 10ms
-            envelope[:attack] = np.linspace(0, 1, attack)
-            envelope[-release:] = np.linspace(1, 0, release)
-            bar_samples *= envelope
+        start_sample = int(i * bar_duration * sample_rate)
+        end_sample = int((i + 1) * bar_duration * sample_rate)
         
-        all_samples.append(bar_samples)
+        if waveform == 'pwm':
+            # Generate stereo PWM for each note
+            waves = [generate_pwm_wave(note.frequency, bar_duration, sample_rate) for note in chord]
+            chord_audio = np.sum(waves, axis=0) / len(waves)
+        else:
+            # Generate mono audio and convert to stereo
+            t = np.linspace(0, bar_duration, int(sample_rate * bar_duration), False)
+            waves = []
+            for note in chord:
+                if waveform == 'sine':
+                    wave = np.sin(2 * np.pi * note.frequency * t)
+                elif waveform == 'sawtooth':
+                    wave = signal.sawtooth(2 * np.pi * note.frequency * t)
+                elif waveform == 'square':
+                    wave = signal.square(2 * np.pi * note.frequency * t)
+                waves.append(wave)
+            chord_audio = np.sum(waves, axis=0) / len(waves)
+            chord_audio = np.column_stack((chord_audio, chord_audio))
+        
+        mixed[start_sample:end_sample] = chord_audio
     
-    # Concatenate all samples
-    final_audio = np.concatenate(all_samples)
+    # Normalize
+    mixed = mixed / np.max(np.abs(mixed))
     
-    return generate_wav_file(final_audio, sample_rate) 
+    # Convert to WAV file
+    with io.BytesIO() as wav_file:
+        wavfile.write(wav_file, sample_rate, mixed.astype(np.float32))
+        wav_file.seek(0)
+        return base64.b64encode(wav_file.read()).decode('utf-8') 

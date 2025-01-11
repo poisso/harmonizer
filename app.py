@@ -1,6 +1,6 @@
 from flask import Flask, render_template, jsonify, request
 from harmonizer import Harmonizer, Note, Voicer
-import audio_utils  # Change this line to import the whole module
+import audio_utils
 
 app = Flask(__name__)
 
@@ -15,22 +15,19 @@ def index():
 @app.route('/harmonize', methods=['POST'])
 def harmonize():
     data = request.get_json()
-    notes_input = data.get('notes', '').split()  # Expect space-separated notes
+    notes_input = data.get('notes', '').split()
     chord_size = int(data.get('chord_size', 3))
     waveform = data.get('waveform', 'sine')
-    voicing_type = data.get('voicing', 'close')  # Default to close position
     
     try:
         # Validate input
         notes = []
         for note in notes_input:
-            # Check if it's a number
             if note.isdigit():
                 num = int(note)
                 if num < 0 or num > 11:
                     raise ValueError(f"Note number {num} must be between 0 and 11")
                 notes.append(str(num))
-            # Check if it's a valid note name
             elif note.upper() in [n.upper() for n in Note.NOTES]:
                 notes.append(note.upper())
             else:
@@ -89,7 +86,6 @@ def play_sequence():
     waveform = data.get('waveform', 'sine')
     
     try:
-        # Convert sequence data to Note objects
         note_sequence = []
         for chord_data in sequence:
             if chord_data is None:
@@ -118,7 +114,6 @@ def play_sequence():
             'audio': audio_b64
         })
     except Exception as e:
-        print(f"Error in play_sequence: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
@@ -132,7 +127,6 @@ def download_sequence():
     waveform = data.get('waveform', 'sine')
     
     try:
-        # Convert sequence data to Note objects
         note_sequence = []
         for chord_data in sequence:
             if chord_data is None:
@@ -161,7 +155,6 @@ def download_sequence():
             'audio': audio_b64
         })
     except Exception as e:
-        print(f"Error in download_sequence: {str(e)}")
         return jsonify({
             'success': False,
             'error': str(e)
